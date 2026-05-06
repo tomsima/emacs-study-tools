@@ -65,9 +65,9 @@
                                 (let* ((pinyin (match-string 1 entry))
                                        (defs (match-string 2 entry))
                                        (w (if (= index 0)
-                                              (format "_%s_" word)
-                                            (make-string (+ 2 (string-width word)) ?\s)))
-                                       (line (format "%s *%s* /%s/"
+                                              (format "*%s*" word)
+                                            (make-string (+ 4 (string-width word)) ?\s)))
+                                       (line (format "%s _%s_ /%s/"
 						     w
 						     (my-pinyin-convert pinyin)
 						     (replace-regexp-in-string "/" ", "
@@ -79,14 +79,15 @@
         (when results
           (mapconcat #'identity results "\n"))))))
 
-(defvar my-cedict-log-buffer "*chinese-lookups*")
+(defvar my-cedict-log-buffer "*chinese-vocab-check*")
 
 (defun my-cedict-log (result)
   (with-current-buffer (get-buffer-create my-cedict-log-buffer)
     (when (= (buffer-size) 0)
       (org-mode))
-    (goto-char (point-max))
-    (insert result "\n")
+    (let ((inhibit-read-only t))
+      (goto-char (point-max))
+      (insert result "\n"))
     (when-let (win (get-buffer-window my-cedict-log-buffer))
       (set-window-point win (point-max)))))
 
@@ -97,12 +98,14 @@
                  (error (cl-reduce (lambda (a b)
                                      (if (< (window-width a) (window-width b)) a b))
                                    (window-list))))))
-      (set-window-buffer win (get-buffer-create my-cedict-log-buffer)))))
+      (set-window-buffer win (get-buffer-create my-cedict-log-buffer))))
+  (with-current-buffer my-cedict-log-buffer
+    (read-only-mode 1)))
 
 (defun my-chinese-lookup ()
   (interactive)
   (unless my-cedict-table
-    (message "Loading dictionary...")
+    (message "loading dictionary...")
     (my-cedict-build-table))
   (let* ((word (if (use-region-p)
                    (buffer-substring-no-properties (region-beginning) (region-end))
@@ -111,7 +114,7 @@
     (my-cedict-ensure-window)
     (if result
         (my-cedict-log result)
-      (my-cedict-log (format "No entry found for: %s" word)))))
+      (my-cedict-log (format "no entry found for: %s" word)))))
 
 ;; (add-hook 'emacs-startup-hook #'my-cedict-build-table)
 
@@ -184,9 +187,9 @@
     (my-jieba-segment "预热"))
   my-jieba-process)
 
-(defvar my-cedict-pinyin-log-buffer "*cangjie-check*")
+;;--------------------------------------------------------------pinyin search for cangjie code
 
-;;----------------------------------------------------------------------------pinyin search
+(defvar my-cedict-pinyin-log-buffer "*cangjie-check*")
 
 (defun my-cedict-pinyin-ensure-window ()
   (unless (get-buffer-window my-cedict-pinyin-log-buffer)
@@ -196,15 +199,17 @@
                                      (if (< (window-width a) (window-width b)) a b))
                                    (window-list))))))
       (set-window-buffer win (get-buffer-create my-cedict-pinyin-log-buffer))
+      (with-current-buffer my-cedict-pinyin-log-buffer
+        (fundamental-mode)
+        (read-only-mode 1))
       (with-selected-window win
-        (text-scale-set 4)))))
+        (text-scale-set 3)))))
 
 (defun my-cedict-pinyin-log (result)
   (with-current-buffer (get-buffer-create my-cedict-pinyin-log-buffer)
-    (goto-char (point-max))
-    (insert result "\n")
-    (when-let (win (get-buffer-window my-cedict-pinyin-log-buffer))
-      (set-window-point win (point-max)))))
+    (let ((inhibit-read-only t))
+      (goto-char (point-max))
+      (insert result "\n"))))
 
 (defun my-cedict-search-by-pinyin (pinyin-query)
   (interactive "spinyin: ")
@@ -224,38 +229,66 @@
           (puthash key t seen-pairs)
           (push pair matches))))
     (my-cedict-pinyin-ensure-window)
-    (my-cedict-pinyin-log
-     (propertize (format "───── %s ─────"
-			 (my-pinyin-to-zhuyin query))
-		 'display '(height 0.5)))
+    (with-current-buffer (get-buffer-create my-cedict-pinyin-log-buffer)
+      (let ((inhibit-read-only t))
+        (erase-buffer)))
     (if matches
-        (let ((seen-chars (make-hash-table :test 'equal)))
+        (let ((seen-chars (make-hash-table :test 'equal))
+              (file-lines '()))
+          (let* ((first-pair (car matches))
+                 (trad-str (car first-pair))
+                 (simp-str (cdr first-pair))
+                 (single-word (cl-every (lambda (p) (string= (car p) trad-str)) matches))
+                 (diff-chars (cl-loop for tc across trad-str
+                                      for sc across simp-str
+                                      collect (if (char-equal tc sc)
+                                                  "-"
+                                                (char-to-string sc))))
+                 (all-same (cl-every (lambda (s) (string= s "-")) diff-chars))
+                 (header (if (or (= (length trad-str) 1) (not single-word))
+                             (my-pinyin-to-zhuyin query)
+                           (format "%s%s %s"
+                                   trad-str
+                                   (if all-same
+                                       ""
+                                     (format " [%s]" (mapconcat #'identity diff-chars "")))
+                                   (my-pinyin-to-zhuyin query)))))
+            (my-cedict-pinyin-log
+             (propertize header 'face '(:height 0.7 :foreground "tomato"))))
           (dolist (pair (nreverse matches))
-	    (let* ((trad (car pair))
-		   (simp (cdr pair))
-		   (format-char (lambda (c)
-				  (let ((code (gethash c cangjie-table)))
-				    (if code
-					(cangjie-code-to-radicals
-					 (car (split-string code " / ")))
-				      nil))))
-		   (lines '()))
-	      (cl-loop for tc across trad
-		       for sc across simp
-		       do (let* ((t-str (char-to-string tc))
-				 (s-str (char-to-string sc))
-				 (same (string= t-str s-str)))
-			    (unless (gethash t-str seen-chars)
-			      (puthash t-str t seen-chars)
-			      (when-let (code (funcall format-char t-str))
-				(push (format "%s：%s" t-str code) lines)))
-			    (unless (or same (gethash s-str seen-chars))
-			      (puthash s-str t seen-chars)
-			      (when-let (code (funcall format-char s-str))
-				(push (format "%s：%s" s-str code) lines)))))
-	      (when lines
-		(my-cedict-pinyin-log (mapconcat #'identity (nreverse lines) "\n"))))))
-      (my-cedict-pinyin-log (format "No entries found for pinyin: %s" query)))))
+            (let* ((trad (car pair))
+                   (simp (cdr pair))
+                   (format-char (lambda (c)
+                                  (let ((code (gethash c cangjie-table)))
+                                    (if code
+                                        (cangjie-code-to-radicals
+                                         (car (split-string code " / ")))
+                                      nil))))
+                   (lines '()))
+              (cl-loop for tc across trad
+                       for sc across simp
+                       do (let* ((t-str (char-to-string tc))
+                                 (s-str (char-to-string sc))
+                                 (same (string= t-str s-str)))
+                            (unless (gethash t-str seen-chars)
+                              (puthash t-str t seen-chars)
+                              (when-let (code (funcall format-char t-str))
+                                (push (format "%s：%s" t-str code) file-lines)
+                                (push (if same
+                                          (format "%s：%s" t-str code)
+                                        (propertize (format "%s：%s" t-str code)
+                                                    'face '(:foreground "dim gray")))
+                                      lines)))
+                            (unless (or same (gethash s-str seen-chars))
+                              (puthash s-str t seen-chars)
+                              (when-let (code (funcall format-char s-str))
+                                (push (format "%s：%s" s-str code) file-lines)
+                                (push (format "%s：%s" s-str code) lines)))))
+              (when lines
+                (my-cedict-pinyin-log
+                 (mapconcat #'identity (nreverse lines) "\n")))))
+          (my-cedict-pinyin-save-to-file query (nreverse file-lines)))
+      (my-cedict-pinyin-log (format "n/a" query)))))
 
 (defun my-cedict-normalize-pinyin (query)
   "Normalize pinyin input like \"peng2you\" or \"peng2 you\" to CEDICT form."
@@ -270,7 +303,7 @@
              "\\15\\2" s)))
     s))
 
-;;--------------------------------------------------------------------cangjie lookup
+;;--------------------------------------------------------------------cangjie code query
 
 (defvar cangjie-table nil
   "Hash table mapping characters to Cangjie codes.")
@@ -319,7 +352,7 @@
   "Look up the Cangjie code for CHAR and display radicals in minibuffer."
   (interactive (list (char-to-string (char-after (point)))))
   (unless cangjie-table
-    (message "Loading Cangjie table...")
+    (message "loading cangjie table...")
     (setq cangjie-table (cangjie-load-table)))
   (let ((code (gethash char cangjie-table)))
     (if code
@@ -328,7 +361,7 @@
                             " / "))
       (message "No Cangjie code found for: %s" char))))
 
-;;------------------------------------------------------------------bopomofo
+;;------------------------------------------------------------------pinyin to bopomofo conversion
 
 (defvar my-pinyin-to-zhuyin-map
   '(;; special whole-syllable mappings first
@@ -399,3 +432,14 @@
 
 (provide 'my-cedict)
 ;;; my-cedict.el ends here
+
+;;------------------------------------------------------write checks to cangjie-check.org file
+
+(defun my-cedict-pinyin-save-to-file (query seen-chars-data)
+  (let ((file (expand-file-name "~/Documents/cangjie-check.org")))
+    (with-temp-buffer
+      (insert (format "* %s\n" (my-pinyin-to-zhuyin query)))
+      (dolist (item seen-chars-data)
+        (insert item "\n"))
+      (write-region (point-min) (point-max) file t 'silent))))
+
