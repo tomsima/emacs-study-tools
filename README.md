@@ -1,6 +1,6 @@
 Emacs extension packages I use for teaching and lecture delivery. The program 'my-cedict.el' has a number of functions that facilitate a bilingual teaching environment for L2 Chinese users:
 
-# Instant Chinese dictionary lookup
+# Tongzhuo classroom tool: Instant Chinese dictionary lookup
 - imports CC-CEDICT (available at https://www.mdbg.net/chinese/dictionary?page=cedict) as a hash table on the first time the interactive command for quering the dictionary is called (this can be set to be done on emacs initialisation, this is currently commented out)
 - calls on jieba.py (running as a background process) for Chinese word segmentation on Chinese text in a buffer
   - text can also be manually selected for search
