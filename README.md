@@ -16,3 +16,8 @@ Emacs extension packages I use for teaching and lecture delivery. The program 'm
 - these character(s) are then matched in the CJ5 database and the corresponding Cangjie codes are printed into a buffer called *cangjie-check* that splits on a 2:1 ratio and fills the smaller window
 - the search query is converted into zhuyin fuhao (bopomofo) and printed alongside the headword in queries that are 2 or more characters. For single character queries there is no headword, only the zhuyin.
 - this buffer is wiped before printing a new search result, but every search result is printed to an org file that has zhuyin formatted as headings. This is because cangjie checks are done by me for characters I forget how to decompose on the spot, and this output file serves as a revision tool.
+
+# Other integrated features
+- Japanese onyomi and Korean character pronunciation databases
+- Cursive character database (top 1000 frequency list, with manual addition capability)
+- vocabulary builder for in-class vocab mining and testing
