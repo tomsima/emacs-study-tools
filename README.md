@@ -1,4 +1,4 @@
-Emacs extension packages I use for teaching and lecture delivery. The program 'my-cedict.el' has a number of functions that facilitate a bilingual teaching environment for L2 Chinese users:
+Emacs extension packages I use for teaching and lecture delivery.
 
 # Tongzhuo classroom tool
 - imports CC-CEDICT (available at https://www.mdbg.net/chinese/dictionary?page=cedict) as a hash table on the first time the interactive command for quering the dictionary is called (this can be set to be done on emacs initialisation, this is currently commented out)
