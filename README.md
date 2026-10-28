@@ -1,6 +1,9 @@
 Emacs extension packages I use for teaching and lecture delivery.
 
 # Tongzhuo classroom tool
+
+<img width="1920" height="1048" alt="Screenshot From 2026-10-28 23-08-25" src="https://github.com/user-attachments/assets/1027c0a2-3f3d-4b59-b2a5-84305378389e" />
+
 - imports CC-CEDICT (available at https://www.mdbg.net/chinese/dictionary?page=cedict) as a hash table on the first time the interactive command for quering the dictionary is called (this can be set to be done on emacs initialisation, this is currently commented out)
 - calls on jieba.py (running as a background process) for Chinese word segmentation on Chinese text in a buffer
   - text can also be manually selected for search
@@ -21,3 +24,6 @@ Emacs extension packages I use for teaching and lecture delivery.
 - Japanese onyomi and Korean character pronunciation databases
 - Cursive character database (top 1000 frequency list, with manual addition capability)
 - vocabulary builder for in-class vocab mining and testing
+
+<img width="1920" height="1048" alt="Screenshot From 2026-10-28 23-08-39" src="https://github.com/user-attachments/assets/8c448516-1bd4-4d48-94a9-95f332cf7ebd" />
+
